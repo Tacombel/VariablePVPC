@@ -6,6 +6,7 @@ En el caso de Curenergía es la suma de:
   Total peaje de transporte y distribución energía
   Total cargos energía
   Coste de la energía
+Hay algún tema de redondeos por ahí, por que la cifre discrepa en algunos centimos de la de la factura.
 La razón principal de este ejercicio era comprobar que lo de llano, valle y punta no tiene ya ningún significado
 Al aplicarse los precios horarios resulta perfectamente posible que una hora valle sea mas cara que una hora punta
 Como ejemplo en https://www.esios.ree.es/es/pvpc compara el precio de un sábado a las 20 horas con un dia entre
