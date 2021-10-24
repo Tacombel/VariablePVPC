@@ -1,4 +1,5 @@
 Utilidad para comparar lo facturado con lo consumido, teniendo em cuenta los precios horarios, para tarifa PVPC
+Solo es valido para consumos a partir de los cambios tarifarios de junio de 2021
 Para empezar hay que bajar el fichero consumo_facturado* de tu distribuidor y colocarlo en el directorio de main.py
 En mi caso es i-DE (Iberdrola distribución) www.i-de.es
 Al ejecutar el programa la cifra en euros que da es el total de la parte correspondiente a energía.
