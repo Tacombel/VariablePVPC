@@ -79,5 +79,5 @@ if __name__ == '__main__':
     print(f'Consultas a la API: {consultas_al_api}')
     print(f'Consumo: {consumo_mes:.3f} KWh')
     print(f'Coste de la energía: {gasto_mes:.2f}€')
-    print(f'Consumo medio diario: {consumo_mes/ (line_count - 1) * 24:.3f} kWh/dia')
+    print(f'Consumo medio diario: {consumo_mes/ dias:.3f} kWh/dia')
     print(f'Precio medio de la energía: {gasto_mes/consumo_mes:.2f} €/kWh. Sin termino fijo y antes de impuestos.')
