@@ -10,4 +10,4 @@ La razón principal de este ejercicio era comprobar que lo de llano, valle y pun
 Al aplicarse los precios horarios resulta perfectamente posible que una hora valle sea mas cara que una hora punta
 Como ejemplo en https://www.esios.ree.es/es/pvpc compara el precio de un sábado a las 20 horas con un dia entre
 semana a las 13 horas y veras que divertido.
-O un día cualquiera, compara el precio a las 7 y el de las 15.
+O un día cualquiera, compara el precio a las 7 y a las 15.
