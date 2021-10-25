@@ -71,7 +71,7 @@ if __name__ == '__main__':
                     consumo_comprado = consumo - PV[date_PV] * potencia_instalada
                     energia_generada += PV[date_PV] * potencia_instalada
                     if consumo_comprado < 0:
-                        energía_cedida += consumo * (-1)
+                        energía_cedida += consumo_comprado * (-1)
                         consumo_comprado = 0
                     else:
                         energía_comprada += consumo_comprado
