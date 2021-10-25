@@ -4,6 +4,7 @@ import os
 import csv
 import requests
 import json
+from secrets import *
 
 def menu():
     path = './'
@@ -45,19 +46,48 @@ def precios_PVPC(dia):
     return datos
 
 
+def precio_autoconsumo(principio, fin):
+    url = 'https://api.esios.ree.es/indicators/1739'
+    headers = {
+        'Accept':'application/json; application/vnd.esios-api-v1+json',
+        'Content-Type':'application/json',
+        'Host':'api.esios.ree.es',
+        'Authorization':'Token token=' + esios_token
+    }
+    params = dict(
+        start_date= principio,
+        end_date= fin
+    )
+    resp = requests.get(url=url, headers=headers, params=params)
+    data = resp.json()
+    return data
+
+
+def formatear_hora(row):
+    dia = row[1].split('/')
+    hora = row[2]
+    hora = str(int(hora) - 1)
+    if len(hora) == 1:
+        hora = '0' + hora
+    else:
+        hora = hora
+    return dia[2] + dia[1] + dia[0] + 'T' + hora + ':00'
+
+
 if __name__ == '__main__':
     potencia_instalada = float(input('Introducir potencia pico solar en kW a considerar (0 si no se desea) >>'))
-    f = open('PV_2016_1kW.json')
-    data = json.load(f)
-    hourly = data['outputs']['hourly']
-    PV = {}
-    for e in hourly:
-        PV[e['time']] = float(e['P']) / 1000
+    if potencia_instalada > 0:
+        f = open('PV_2016_1kW.json')
+        data = json.load(f)
+        hourly = data['outputs']['hourly']
+        PV = {}
+        for e in hourly:
+            PV[e['time']] = float(e['P']) / 1000
 
     consumo_periodo = 0
     compra_energia = 0
     compra_energia_sin_solar = 0
-    venta_energia_maxima = 0
+    venta_energia_total = 0
     date_PVPC = 'vacio'
     date_autoconsumo = 'vacio'
     consultas_API = 0
@@ -73,7 +103,14 @@ if __name__ == '__main__':
         with open(opcion) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=';')
             line_count = 0
-            for row in csv_reader:
+            rows = list(csv_reader)
+            print(f'Primera fecha: {formatear_hora(rows[1])}')
+            print(f'Primera fecha: {formatear_hora(rows[-1])}')
+            precios_autoconsumo = precio_autoconsumo(formatear_hora(rows[1]), formatear_hora(rows[-1]))['indicator']['values']
+            precios_autoconsumo_dict = {}
+            for e in precios_autoconsumo:
+                precios_autoconsumo_dict[e['datetime']] = e['value']
+            for row in rows:
                 if line_count == 0:
                     line_count += 1
                 else:
@@ -88,10 +125,14 @@ if __name__ == '__main__':
                     consumo_linea = row[3]
                     consumo_linea = float(consumo_linea.replace(',', '.'))
                     energia_consumida += consumo_linea
-                    consumo_comprado = consumo_linea - PV[date_PV] * potencia_instalada
-                    energia_generada += PV[date_PV] * potencia_instalada
+                    consumo_comprado = consumo_linea
+                    if potencia_instalada > 0:
+                        consumo_comprado = consumo_linea - PV[date_PV] * potencia_instalada
+                        energia_generada += PV[date_PV] * potencia_instalada
                     if consumo_comprado < 0:
                         energía_exportada += consumo_comprado * (-1)
+                        date_AC = f'{dia[2]}-{dia[1]}-{dia[0]}T{hora}:00:00.000+02:00'
+                        venta_energia_total += consumo_comprado * precios_autoconsumo_dict[date_AC] / 1000 * (-1)
                         consumo_comprado = 0
                     else:
                         energía_importada += consumo_comprado
@@ -107,6 +148,7 @@ if __name__ == '__main__':
         lineas += line_count
         dias += (line_count - 1) / 24
 
+
     print(f'Lineas: {lineas}')
     print(f'Días considerados: {int(dias)}')
     print(f'Consultas al API: {consultas_API}')
@@ -115,9 +157,12 @@ if __name__ == '__main__':
     if potencia_instalada > 0:
         print(f'Energía generada: {energia_generada:.3f} kWh')
         print(f'Energía importada: {energía_importada:.3f} kWh')
-        print(f'Energía exportada gratuitamente: {energía_exportada:.3f} kWh')
-    print(f'Coste de la energía: {compra_energia:.2f}€')
+        print(f'Energía exportada: {energía_exportada:.3f} kWh')
+    print(f'Compra de energía: {compra_energia:.2f}€')
     if potencia_instalada > 0:
-            print(f'Ahorro: {compra_energia_sin_solar - compra_energia:.2f}€')
-    print(f'Consumo medio diario de la red: {energía_importada / dias:.3f} kWh/dia')
-    print(f'Precio medio de la energía: {compra_energia / energía_importada:.2f} €/kWh. Sin costes fijos ni impuestos.')
+        print(f'Venta de energía: {venta_energia_total:.2f}€')
+        if venta_energia_total > compra_energia:
+            venta_energia_total = compra_energia
+        print(f'Coste facturado: {compra_energia - venta_energia_total:.2f}€')
+        print(f'Ahorro: {compra_energia_sin_solar - compra_energia + venta_energia_total:.2f}€')
+    print(f'Sin costes fijos ni impuestos.')
