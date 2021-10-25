@@ -75,19 +75,8 @@ def formatear_hora(row):
 
 
 if __name__ == '__main__':
-    potencia_instalada = float(input('Introducir potencia pico solar en kW a considerar (0 si no se desea) >>'))
-    if potencia_instalada > 0:
-        f = open('PV_2016_1kW.json')
-        data = json.load(f)
-        hourly = data['outputs']['hourly']
-        PV = {}
-        for e in hourly:
-            PV[e['time']] = float(e['P']) / 1000
-
-    consumo_periodo = 0
-    compra_energia = 0
     compra_energia_sin_solar = 0
-    venta_energia_total = 0
+    coste_facturado = 0
     date_PVPC = 'vacio'
     date_autoconsumo = 'vacio'
     consultas_API = 0
@@ -98,14 +87,26 @@ if __name__ == '__main__':
     energía_importada = 0
     energía_exportada = 0
 
+    potencia_instalada = float(input('Introducir potencia pico solar en kW a considerar (0 si no se desea) >>'))
+    if potencia_instalada > 0:
+        f = open('PV_2016_1kW.json')
+        data = json.load(f)
+        hourly = data['outputs']['hourly']
+        PV = {}
+        for e in hourly:
+            PV[e['time']] = float(e['P']) / 1000
+
     opciones = menu()
     for opcion in opciones:
+        venta_energia_total = 0
+        consumo_periodo = 0
+        compra_energia = 0
+        line_count = 0
         with open(opcion) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=';')
-            line_count = 0
             rows = list(csv_reader)
-            print(f'Primera fecha: {formatear_hora(rows[1])}')
-            print(f'Primera fecha: {formatear_hora(rows[-1])}')
+#            print(f'Primera fecha: {formatear_hora(rows[1])}')
+#            print(f'Última fecha:  {formatear_hora(rows[-1])}')
             precios_autoconsumo = precio_autoconsumo(formatear_hora(rows[1]), formatear_hora(rows[-1]))['indicator']['values']
             precios_autoconsumo_dict = {}
             for e in precios_autoconsumo:
@@ -145,6 +146,10 @@ if __name__ == '__main__':
                     if potencia_instalada > 0:
                         compra_energia_sin_solar += consumo_linea * precios_horarios[row[2]]
                     line_count += 1
+        if compra_energia > venta_energia_total:
+            coste_facturado += compra_energia - venta_energia_total
+        else:
+            coste_facturado += 0
         lineas += line_count
         dias += (line_count - 1) / 24
 
@@ -163,6 +168,6 @@ if __name__ == '__main__':
         print(f'Venta de energía: {venta_energia_total:.2f}€')
         if venta_energia_total > compra_energia:
             venta_energia_total = compra_energia
-        print(f'Coste facturado: {compra_energia - venta_energia_total:.2f}€')
-        print(f'Ahorro: {compra_energia_sin_solar - compra_energia + venta_energia_total:.2f}€')
+        print(f'Coste facturado: {coste_facturado:.2f}€')
+        print(f'Ahorro: {compra_energia_sin_solar - coste_facturado:.2f}€')
     print(f'Sin costes fijos ni impuestos.')

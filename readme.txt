@@ -19,3 +19,6 @@ https://re.jrc.ec.europa.eu/pvg_tools/es/#PVP marcando en el mapa la ubicación 
 ño inicial y final y tecleando una potencia pico de 1
 Hay que descargar los datos en formato json, renombrar el fichero PV_2016_1kW.json y ponerlo en el mismo directorio de
 main.py
+Tambien es necesario tener un token para bajarse datos del pago por autoconsumo. Hay que pedirlo en consultasios@ree.es
+y crear un fichero llamado secrets.py y cuya primera line contendra:
+esios_token = 'MiToken'
