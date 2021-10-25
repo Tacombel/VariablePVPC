@@ -76,6 +76,8 @@ def formatear_hora(row):
 
 if __name__ == '__main__':
     compra_energia_sin_solar = 0
+    compra_energia_agregada = 0
+    venta_energia_agregada = 0
     coste_facturado = 0
     date_PVPC = 'vacio'
     date_autoconsumo = 'vacio'
@@ -98,7 +100,7 @@ if __name__ == '__main__':
 
     opciones = menu()
     for opcion in opciones:
-        venta_energia_total = 0
+        venta_energia = 0
         consumo_periodo = 0
         compra_energia = 0
         line_count = 0
@@ -107,14 +109,19 @@ if __name__ == '__main__':
             rows = list(csv_reader)
 #            print(f'Primera fecha: {formatear_hora(rows[1])}')
 #            print(f'Última fecha:  {formatear_hora(rows[-1])}')
-            precios_autoconsumo = precio_autoconsumo(formatear_hora(rows[1]), formatear_hora(rows[-1]))['indicator']['values']
-            precios_autoconsumo_dict = {}
-            for e in precios_autoconsumo:
-                precios_autoconsumo_dict[e['datetime']] = e['value']
+            if potencia_instalada > 0:
+                precios_autoconsumo = precio_autoconsumo(formatear_hora(rows[1]), formatear_hora(rows[-1]))['indicator']['values']
+                precios_autoconsumo_dict = {}
+                for e in precios_autoconsumo:
+                    precios_autoconsumo_dict[e['datetime']] = e['value']
             for row in rows:
                 if line_count == 0:
                     line_count += 1
                 else:
+                    consumo_linea = row[3]
+                    consumo_linea = float(consumo_linea.replace(',', '.'))
+                    energia_consumida += consumo_linea
+                    consumo_comprado = consumo_linea
                     dia = row[1].split('/')
                     hora = row[2]
                     hora = str(int(hora) - 1)
@@ -122,18 +129,14 @@ if __name__ == '__main__':
                         hora = '0' + hora
                     else:
                         hora = hora
-                    date_PV = '2016' + dia[1] + dia[0] + ':' + hora + '10'
-                    consumo_linea = row[3]
-                    consumo_linea = float(consumo_linea.replace(',', '.'))
-                    energia_consumida += consumo_linea
-                    consumo_comprado = consumo_linea
                     if potencia_instalada > 0:
+                        date_PV = '2016' + dia[1] + dia[0] + ':' + hora + '10'
                         consumo_comprado = consumo_linea - PV[date_PV] * potencia_instalada
                         energia_generada += PV[date_PV] * potencia_instalada
                     if consumo_comprado < 0:
                         energía_exportada += consumo_comprado * (-1)
                         date_AC = f'{dia[2]}-{dia[1]}-{dia[0]}T{hora}:00:00.000+02:00'
-                        venta_energia_total += consumo_comprado * precios_autoconsumo_dict[date_AC] / 1000 * (-1)
+                        venta_energia += consumo_comprado * precios_autoconsumo_dict[date_AC] / 1000 * (-1)
                         consumo_comprado = 0
                     else:
                         energía_importada += consumo_comprado
@@ -146,10 +149,12 @@ if __name__ == '__main__':
                     if potencia_instalada > 0:
                         compra_energia_sin_solar += consumo_linea * precios_horarios[row[2]]
                     line_count += 1
-        if compra_energia > venta_energia_total:
-            coste_facturado += compra_energia - venta_energia_total
+        if compra_energia > venta_energia:
+            coste_facturado += compra_energia - venta_energia
         else:
             coste_facturado += 0
+        compra_energia_agregada += compra_energia
+        venta_energia_agregada += venta_energia
         lineas += line_count
         dias += (line_count - 1) / 24
 
@@ -163,11 +168,9 @@ if __name__ == '__main__':
         print(f'Energía generada: {energia_generada:.3f} kWh')
         print(f'Energía importada: {energía_importada:.3f} kWh')
         print(f'Energía exportada: {energía_exportada:.3f} kWh')
-    print(f'Compra de energía: {compra_energia:.2f}€')
+    print(f'Compra de energía: {compra_energia_agregada:.2f}€')
     if potencia_instalada > 0:
-        print(f'Venta de energía: {venta_energia_total:.2f}€')
-        if venta_energia_total > compra_energia:
-            venta_energia_total = compra_energia
+        print(f'Venta de energía: {venta_energia_agregada:.2f}€')
         print(f'Coste facturado: {coste_facturado:.2f}€')
         print(f'Ahorro: {compra_energia_sin_solar - coste_facturado:.2f}€')
     print(f'Sin costes fijos ni impuestos.')
