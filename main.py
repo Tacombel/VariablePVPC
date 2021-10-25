@@ -28,6 +28,23 @@ def menu():
         return opciones
 
 
+def precios_PVPC(dia):
+    url = 'https://api.esios.ree.es/archives/70/download_json'
+    params = dict(
+        locale='es',
+        date=dia[2] + '-' + dia[1] + '-' + dia[0]
+    )
+    resp = requests.get(url=url, params=params)
+    data = resp.json()
+    datos = {}
+    for e in data['PVPC']:
+        hora = e['Hora']
+        hora = hora[3:]
+        hora = hora.lstrip('0')
+        datos[hora] = float(e['PCB'].replace(',', '.')) / 1000
+    return datos
+
+
 if __name__ == '__main__':
     potencia_instalada = float(input('Introducir potencia pico solar en kW a considerar (0 si no se desea) >>'))
     f = open('PV_2016_1kW.json')
@@ -36,17 +53,20 @@ if __name__ == '__main__':
     PV = {}
     for e in hourly:
         PV[e['time']] = float(e['P']) / 1000
-    consumo_mes = 0
-    gasto_mes = 0
-    gasto_mes_sin_solar = 0
-    date = 'vacio'
-    consultas_al_api = 0
+
+    consumo_periodo = 0
+    compra_energia = 0
+    compra_energia_sin_solar = 0
+    venta_energia_maxima = 0
+    date_PVPC = 'vacio'
+    date_autoconsumo = 'vacio'
+    consultas_API = 0
     lineas = 0
     dias = 0
     energia_consumida = 0
     energia_generada = 0
-    energía_comprada = 0
-    energía_cedida = 0
+    energía_importada = 0
+    energía_exportada = 0
 
     opciones = menu()
     for opcion in opciones:
@@ -65,49 +85,39 @@ if __name__ == '__main__':
                     else:
                         hora = hora
                     date_PV = '2016' + dia[1] + dia[0] + ':' + hora + '10'
-                    consumo = row[3]
-                    consumo = float(consumo.replace(',', '.'))
-                    energia_consumida += consumo
-                    consumo_comprado = consumo - PV[date_PV] * potencia_instalada
+                    consumo_linea = row[3]
+                    consumo_linea = float(consumo_linea.replace(',', '.'))
+                    energia_consumida += consumo_linea
+                    consumo_comprado = consumo_linea - PV[date_PV] * potencia_instalada
                     energia_generada += PV[date_PV] * potencia_instalada
                     if consumo_comprado < 0:
-                        energía_cedida += consumo_comprado * (-1)
+                        energía_exportada += consumo_comprado * (-1)
                         consumo_comprado = 0
                     else:
-                        energía_comprada += consumo_comprado
-                    if date == 'vacio' or date != row[1]:
-                        consultas_al_api += 1
-                        date = row[1]
-                        url = 'https://api.esios.ree.es/archives/70/download_json'
-                        params = dict(
-                            locale='es',
-                            date=dia[2] + '-' + dia[1] + '-' + dia[0]
-                        )
-                        resp = requests.get(url=url, params=params)
-                        data = resp.json()
+                        energía_importada += consumo_comprado
+                    if date_PVPC == 'vacio' or date_PVPC != row[1]:
                         precios_horarios = {}
-                        for e in data['PVPC']:
-                            hora = e['Hora']
-                            hora = hora[3:]
-                            hora = hora.lstrip('0')
-                            precios_horarios[hora] = float(e['PCB'].replace(',', '.')) / 1000
-                    gasto_mes += consumo_comprado * precios_horarios[row[2]]
+                        date_PVPC = row[1]
+                        precios_horarios = precios_PVPC(dia)
+                        consultas_API += 1
+                    compra_energia += consumo_comprado * precios_horarios[row[2]]
                     if potencia_instalada > 0:
-                        gasto_mes_sin_solar += consumo * precios_horarios[row[2]]
+                        compra_energia_sin_solar += consumo_linea * precios_horarios[row[2]]
                     line_count += 1
         lineas += line_count
         dias += (line_count - 1) / 24
 
     print(f'Lineas: {lineas}')
     print(f'Días considerados: {int(dias)}')
-    print(f'Consultas a la API: {consultas_al_api}')
-    print(f'Energía consumida: {energia_consumida:.3f} KWh')
+    print(f'Consultas al API: {consultas_API}')
+    print(f'----------------------------------------------------------------------------------------------------------')
+    print(f'Energía consumida: {energia_consumida:.3f} kWh')
     if potencia_instalada > 0:
         print(f'Energía generada: {energia_generada:.3f} kWh')
-        print(f'Energía comprada: {energía_comprada:.3f} kWh')
-        print(f'Energía cedida gratuitamente: {energía_cedida:.3f} kWh')
-    print(f'Coste de la energía: {gasto_mes:.2f}€')
+        print(f'Energía importada: {energía_importada:.3f} kWh')
+        print(f'Energía exportada gratuitamente: {energía_exportada:.3f} kWh')
+    print(f'Coste de la energía: {compra_energia:.2f}€')
     if potencia_instalada > 0:
-            print(f'Ahorro: {gasto_mes_sin_solar - gasto_mes:.2f}€')
-    print(f'Consumo medio diario de la red: {energía_comprada/ dias:.3f} kWh/dia')
-    print(f'Precio medio de la energía: {gasto_mes/energía_comprada:.2f} €/kWh. Sin termino fijo y antes de impuestos.')
+            print(f'Ahorro: {compra_energia_sin_solar - compra_energia:.2f}€')
+    print(f'Consumo medio diario de la red: {energía_importada / dias:.3f} kWh/dia')
+    print(f'Precio medio de la energía: {compra_energia / energía_importada:.2f} €/kWh. Sin costes fijos ni impuestos.')
