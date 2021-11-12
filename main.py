@@ -107,8 +107,6 @@ if __name__ == '__main__':
         with open(opcion) as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=';')
             rows = list(csv_reader)
-#            print(f'Primera fecha: {formatear_hora(rows[1])}')
-#            print(f'Última fecha:  {formatear_hora(rows[-1])}')
             if potencia_instalada > 0:
                 precios_autoconsumo = precio_autoconsumo(formatear_hora(rows[1]), formatear_hora(rows[-1]))['indicator']['values']
                 precios_autoconsumo_dict = {}
@@ -125,6 +123,9 @@ if __name__ == '__main__':
                     dia = row[1].split('/')
                     hora = row[2]
                     hora = str(int(hora) - 1)
+                    #pequeño apaño porque coincidiendo con el cambio de hora hay un dia que tiene 25 datos. Como es de noche el valor es cero asi que no pasa nada por ignorarlo
+                    if hora == '24':
+                        hora = '23'
                     if len(hora) == 1:
                         hora = '0' + hora
                     else:
@@ -135,8 +136,14 @@ if __name__ == '__main__':
                         energia_generada += PV[date_PV] * potencia_instalada
                     if consumo_comprado < 0:
                         energía_exportada += consumo_comprado * (-1)
-                        date_AC = f'{dia[2]}-{dia[1]}-{dia[0]}T{hora}:00:00.000+02:00'
-                        venta_energia += consumo_comprado * precios_autoconsumo_dict[date_AC] / 1000 * (-1)
+                        # apaño cutre para el cambio de hora
+                        try:
+                            date_AC = f'{dia[2]}-{dia[1]}-{dia[0]}T{hora}:00:00.000+02:00'
+                            precio = precios_autoconsumo_dict[date_AC]
+                        except:
+                            date_AC = f'{dia[2]}-{dia[1]}-{dia[0]}T{hora}:00:00.000+01:00'
+                            precio = precios_autoconsumo_dict[date_AC]
+                        venta_energia += consumo_comprado * precio / 1000 * (-1)
                         consumo_comprado = 0
                     else:
                         energía_importada += consumo_comprado
